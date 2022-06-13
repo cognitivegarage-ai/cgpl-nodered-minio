@@ -55,7 +55,7 @@ module.exports = function(RED) {
             var contents = node.filterContents(data.Contents);
             node.state = contents.map(function (e) { return e.Key; });
             node.status({});
-            node.on("input", function(msg) {
+            node.on("input", function(msg, nodeSend, nodeDone) {
                 node.status({fill:"blue",shape:"dot",text:"aws.status.checking-for-changes"});
                 s3.listObjects({ Bucket: node.bucket }, function(err, data) {
                     if (err) {
@@ -81,6 +81,7 @@ module.exports = function(RED) {
                             msg.event = 'add';
                             msg.data = newContents[i];
                             node.send(msg);
+                            nodeDone()
                         }
                     }
                     for (var f in seen) {
@@ -90,6 +91,7 @@ module.exports = function(RED) {
                             msg.event = 'delete';
                             // msg.data intentionally null
                             node.send(msg);
+                            nodeDone()
                         }
                     }
                     node.state = newContents.map(function (e) {return e.Key;});
@@ -129,7 +131,7 @@ module.exports = function(RED) {
             return;
         }
         var s3 = new AWS.S3();
-        node.on("input", function(msg) {
+        node.on("input", function(msg, nodeSend, nodeDone) {
             var format = node.format || msg.format;
             var bucket = node.bucket || msg.bucket;
             if (bucket === "") {
@@ -162,6 +164,7 @@ module.exports = function(RED) {
                 }
                 node.status({});
                 node.send(msg);
+                nodeDone()
             });
         });
     }
@@ -185,18 +188,25 @@ module.exports = function(RED) {
             node.warn(RED._("aws.warn.missing-credentials"));
             return;
         }
+        console.warn("REACHEDDD1")
         if (AWS) {
+            console.warn("REACHEDDD2")
             var s3 = new AWS.S3();
             node.status({fill:"blue",shape:"dot",text:"aws.status.checking-credentials"});
-            s3.listObjects({ Bucket: node.bucket }, function(err) {
-                if (err) {
-                    node.warn(err);
-                    node.error(RED._("aws.error.aws-s3-error",{err:err}));
-                    node.status({fill:"red",shape:"ring",text:"aws.status.error"});
-                    return;
-                }
-                node.status({});
-                node.on("input", function(msg) {
+
+            node.on("input", function(msg, nodeSend, nodeDone){
+                // nodeSend(msg) can be replacement for node.send(msg)
+                // nodeDone() should be used when node's work is complete
+                // nodeDone(err, msg) should be used to raise error to be cuaght by catch node
+                s3.listObjects({ Bucket: node.bucket }, function(err) {
+                    if (err) {
+                        node.warn(err);
+                        node.error(RED._("aws.error.aws-s3-error",{err:err}));
+                        node.status({fill:"red",shape:"ring",text:"aws.status.error"});
+                        nodeDone(RED._("aws.error.aws-s3-error",{err:err}), {errors:err})
+                        return;
+                    }
+                    node.status({});
                     var bucket = node.bucket || msg.bucket;
                     var acl = node.acl || msg.acl;
                     var filename = node.filename || msg.filename;
@@ -207,10 +217,12 @@ module.exports = function(RED) {
                     
                     if (bucket === "") {
                         node.error(RED._("aws.error.no-bucket-specified"),msg);
+                        nodeDone(RED._("aws.error.no-bucket-specified"), msg);
                         return;
                     }
                     if (filename === "") {
                         node.error(RED._("aws.error.no-filename-specified"),msg);
+                        nodeDone(RED._("aws.error.no-filename-specified"), msg);
                         return;
                     }
 
@@ -232,15 +244,17 @@ module.exports = function(RED) {
                             if (err) {
                                 node.error(err.toString(),msg);
                                 node.status({fill:"red",shape:"ring",text:"aws.status.failed"});
+                                nodeDone("Failed to upload the file", msg);
                                 return;
                             }
                             node.status({});
                             msg.payload = response;
                             node.send(msg);
+                            nodeDone();
                         });
                     } else if (typeof msg.payload !== "undefined") {
                         node.status({fill:"blue",shape:"dot",text:"aws.status.uploading"});
-                                         
+                                            
                         if (contentEncoding) {
                             settings.ContentEncoding = contentEncoding;
                         }
@@ -262,16 +276,20 @@ module.exports = function(RED) {
                             if (err) {
                                 node.error(err.toString(),msg);
                                 node.status({fill:"red",shape:"ring",text:"aws.status.failed"});
+                                nodeDone("Failed to upload the file", msg);
                                 return;
                             }
 
                             node.status({});
                             msg.payload = response;
                             node.send(msg);
+                            nodeDone();
                         });
                     }
+                
                 });
-            });
+            })
+            
         }
     }
     RED.nodes.registerType("amazon s3 put",AmazonS3OutNode);
