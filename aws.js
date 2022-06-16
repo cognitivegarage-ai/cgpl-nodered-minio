@@ -61,6 +61,7 @@ module.exports = function(RED) {
                     if (err) {
                         node.error(RED._("aws.error.failed-to-fetch", {err:err}),msg);
                         node.status({});
+                        nodeSend([null, msg])
                         return;
                     }
                     node.status({});
@@ -91,7 +92,7 @@ module.exports = function(RED) {
                             msg.event = 'delete';
                             // msg.data intentionally null
                             node.send(msg);
-                            nodeDone()
+                            nodeDone();
                         }
                     }
                     node.state = newContents.map(function (e) {return e.Key;});
@@ -155,6 +156,9 @@ module.exports = function(RED) {
                     node.error(RED._("aws.error.download-failed",{err:err.toString()}),msg);
                     // set the payload to undefined if there is an error retrieving the requested key.
                     msg.payload = undefined;
+                    nodeSend([null, msg])
+                    nodeDone(RED._("aws.error.download-failed",{err:err.toString()}),msg);
+                    return
                 } else {
                     if (format == "utf8") {
                         msg.payload = data.Body.toString('utf8');
@@ -164,7 +168,7 @@ module.exports = function(RED) {
                 }
                 node.status({});
                 node.send(msg);
-                nodeDone()
+                nodeDone();
             });
         });
     }
@@ -245,11 +249,12 @@ module.exports = function(RED) {
                                 node.error(err.toString(),msg);
                                 node.status({fill:"red",shape:"ring",text:"aws.status.failed"});
                                 nodeDone("Failed to upload the file", msg);
+                                nodeSend([null, msg])
                                 return;
                             }
                             node.status({});
                             msg.payload = response;
-                            node.send(msg);
+                            node.send([msg,null]);
                             nodeDone();
                         });
                     } else if (typeof msg.payload !== "undefined") {
@@ -277,12 +282,13 @@ module.exports = function(RED) {
                                 node.error(err.toString(),msg);
                                 node.status({fill:"red",shape:"ring",text:"aws.status.failed"});
                                 nodeDone("Failed to upload the file", msg);
+                                nodeSend([null, msg])
                                 return;
                             }
 
                             node.status({});
                             msg.payload = response;
-                            node.send(msg);
+                            node.send([msg,null]);
                             nodeDone();
                         });
                     }
