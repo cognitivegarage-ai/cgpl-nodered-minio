@@ -192,9 +192,7 @@ module.exports = function(RED) {
             node.warn(RED._("aws.warn.missing-credentials"));
             return;
         }
-        console.warn("REACHEDDD1")
         if (AWS) {
-            console.warn("REACHEDDD2")
             var s3 = new AWS.S3();
             node.status({fill:"blue",shape:"dot",text:"aws.status.checking-credentials"});
 
@@ -211,7 +209,7 @@ module.exports = function(RED) {
                         return;
                     }
                     node.status({});
-                    var bucket = node.bucket || msg.bucket;
+                    var bucket =msg.bucket ||  node.bucket;
                     var acl = node.acl || msg.acl;
                     var filename = node.filename || msg.filename;
                     var localFilename = node.localFilename || msg.localFilename;
