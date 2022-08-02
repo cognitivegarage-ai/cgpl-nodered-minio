@@ -1,4 +1,6 @@
-node-red-contrib-s3
+@cgpl/nodered-minio
+---
+Forked and Modified
 =================
 
 A <a href="http://nodered.org" target="_new">Node-RED</a> node to watch, put
